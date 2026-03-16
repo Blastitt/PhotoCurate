@@ -58,9 +58,20 @@ class Settings(BaseSettings):
     azure_ai_vision_endpoint: str | None = None
     azure_ai_vision_key: str | None = None
 
+    # --- Adobe Lightroom (optional — feature disabled when unset) ---
+    adobe_client_id: str | None = None
+    adobe_client_secret: str | None = None
+    adobe_oauth_redirect_uri: str | None = None
+    adobe_token_encryption_key: str | None = None  # Fernet key for encrypting stored tokens
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
+
+    @property
+    def adobe_enabled(self) -> bool:
+        """True when Adobe Lightroom integration is configured."""
+        return self.adobe_client_id is not None
 
 
 settings = Settings()

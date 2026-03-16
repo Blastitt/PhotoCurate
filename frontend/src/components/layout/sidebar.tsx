@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Users,
   Palette,
+  Settings,
   LogOut,
   Sun,
   Moon,
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/sessions", label: "Sessions", icon: FolderOpen },
   { href: "/dashboard/clients", label: "Clients", icon: Users },
   { href: "/dashboard/branding", label: "Branding", icon: Palette },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 interface SidebarProps {

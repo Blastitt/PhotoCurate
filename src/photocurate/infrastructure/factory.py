@@ -40,3 +40,11 @@ def create_image_analyzer() -> ImageAnalyzer:
     else:
         from photocurate.infrastructure.local_analyzer import LocalImageAnalyzer
         return LocalImageAnalyzer()
+
+
+def create_lightroom_client():
+    """Create a LightroomClient if Adobe integration is enabled, else None."""
+    if settings.adobe_enabled:
+        from photocurate.infrastructure.adobe_lightroom import LightroomClient
+        return LightroomClient()
+    return None

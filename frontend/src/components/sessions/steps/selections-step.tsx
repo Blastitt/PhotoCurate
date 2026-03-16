@@ -22,6 +22,7 @@ import {
   ImageIcon,
   ArrowRight,
   CheckCircle2,
+  Cloud,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -200,6 +201,16 @@ export function SelectionsStep({
                     </AnimatePresence>
                   </div>
                 </div>
+
+                {/* Lightroom flagging status */}
+                {selectedPhotos.some((p) => p.lightroom_asset_id) && (
+                  <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm">
+                    <Cloud className="h-4 w-4 text-blue-500" />
+                    <span>
+                      Picks flagged in Lightroom for {selectedPhotos.filter((p) => p.lightroom_asset_id).length} photo(s).
+                    </span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

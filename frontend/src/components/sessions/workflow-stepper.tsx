@@ -35,6 +35,7 @@ export function deriveSteps(sessionStatus: string): WorkflowStep[] {
     "uploading",
     "processing",
     "curated",
+    "gallery_ready",
     "gallery_shared",
     "selection_complete",
     "editing",
@@ -46,9 +47,9 @@ export function deriveSteps(sessionStatus: string): WorkflowStep[] {
   let activeStepIdx = 0;
   if (idx <= 1) activeStepIdx = 0; // created, uploading → Upload
   else if (idx === 2) activeStepIdx = 1; // processing → Processing
-  else if (idx === 3) activeStepIdx = 2; // curated → Review
-  else if (idx === 4) activeStepIdx = 3; // gallery_shared → Gallery
-  else if (idx === 5) activeStepIdx = 4; // selection_complete → Selections
+  else if (idx === 3 || idx === 4) activeStepIdx = 2; // curated, gallery_ready → Review
+  else if (idx === 5) activeStepIdx = 3; // gallery_shared → Gallery
+  else if (idx === 6) activeStepIdx = 4; // selection_complete → Selections
   else activeStepIdx = 5; // editing, delivered → Deliver
 
   return DEFAULT_STEPS.map((s, i) => ({

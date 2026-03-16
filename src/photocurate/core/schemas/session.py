@@ -16,6 +16,10 @@ class SessionCreate(BaseModel):
     shoot_date: date | None = None
     client_id: UUID | None = None
     auto_pick_count: int = Field(default=50, ge=1, le=500)
+    ai_processing_enabled: bool = True
+    lightroom_sync: bool = False
+    lightroom_target_album_id: str | None = None
+    lightroom_target_album_name: str | None = None
 
 
 class SessionUpdate(BaseModel):
@@ -25,6 +29,10 @@ class SessionUpdate(BaseModel):
     client_id: UUID | None = None
     auto_pick_count: int | None = Field(default=None, ge=1, le=500)
     status: str | None = None
+    ai_processing_enabled: bool | None = None
+    lightroom_sync: bool | None = None
+    lightroom_target_album_id: str | None = None
+    lightroom_target_album_name: str | None = None
 
 
 class ProcessingConfigUpdate(BaseModel):
@@ -44,6 +52,10 @@ class SessionResponse(BaseModel):
     shoot_date: date | None
     status: str
     auto_pick_count: int
+    ai_processing_enabled: bool
+    lightroom_sync: bool
+    lightroom_target_album_id: str | None
+    lightroom_target_album_name: str | None
     wb_mode: str
     wb_temp_shift: float
     wb_tint_shift: float
@@ -65,6 +77,8 @@ class PhotoResponse(BaseModel):
     height: int | None
     mime_type: str | None
     status: str
+    lightroom_asset_id: str | None = None
+    lightroom_sync_status: str | None = None
     created_at: datetime
     ai_score: AIScoreResponse | None = None
     thumbnail_url: str | None = None

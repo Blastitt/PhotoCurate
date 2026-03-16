@@ -97,6 +97,10 @@ export interface SessionResponse {
   shoot_date: string | null;
   status: string;
   auto_pick_count: number;
+  ai_processing_enabled: boolean;
+  lightroom_sync: boolean;
+  lightroom_target_album_id: string | null;
+  lightroom_target_album_name: string | null;
   wb_mode: string;
   wb_temp_shift: number;
   wb_tint_shift: number;
@@ -114,6 +118,8 @@ export interface PhotoResponse {
   height: number | null;
   mime_type: string | null;
   status: string;
+  lightroom_asset_id: string | null;
+  lightroom_sync_status: string | null;
   created_at: string;
   ai_score: AIScoreResponse | null;
   thumbnail_url: string | null;
@@ -155,6 +161,10 @@ export const sessions = {
     shoot_date?: string;
     client_id?: string;
     auto_pick_count?: number;
+    ai_processing_enabled?: boolean;
+    lightroom_sync?: boolean;
+    lightroom_target_album_id?: string;
+    lightroom_target_album_name?: string;
   }) {
     return request<SessionResponse>("/api/v1/sessions", {
       method: "POST",
@@ -171,6 +181,10 @@ export const sessions = {
       client_id: string;
       auto_pick_count: number;
       status: string;
+      ai_processing_enabled: boolean;
+      lightroom_sync: boolean;
+      lightroom_target_album_id: string;
+      lightroom_target_album_name: string;
     }>,
   ) {
     return request<SessionResponse>(`/api/v1/sessions/${encodeURIComponent(id)}`, {
@@ -465,6 +479,85 @@ export const publicGallery = {
   status(slug: string) {
     return request<{ slug: string; status: string; max_selections: number | null }>(
       `/api/v1/gallery/${encodeURIComponent(slug)}/status`,
+    );
+  },
+};
+
+// ─── Features ────────────────────────────────────────────────────────────────
+
+export interface FeaturesResponse {
+  adobe_lightroom: boolean;
+}
+
+export const features = {
+  get() {
+    return request<FeaturesResponse>("/api/v1/config/features");
+  },
+};
+
+// ─── Adobe Lightroom ─────────────────────────────────────────────────────────
+
+export interface AdobeStatusResponse {
+  connected: boolean;
+  catalog_id: string | null;
+  pending_task_count: number;
+}
+
+export interface AdobeConnectResponse {
+  redirect_url: string;
+}
+
+export const adobe = {
+  connect() {
+    return request<AdobeConnectResponse>("/api/v1/adobe/connect");
+  },
+
+  disconnect() {
+    return request<{ detail: string }>("/api/v1/adobe/disconnect", {
+      method: "DELETE",
+    });
+  },
+
+  status() {
+    return request<AdobeStatusResponse>("/api/v1/adobe/status");
+  },
+
+  retryPending() {
+    return request<{ retried: number }>("/api/v1/adobe/retry-pending", {
+      method: "POST",
+    });
+  },
+
+  listAlbums(limit = 50, after?: string) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (after) params.set("after", after);
+    return request<any>(`/api/v1/adobe/albums?${params}`);
+  },
+
+  listAlbumAssets(albumId: string, limit = 50, after?: string) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (after) params.set("after", after);
+    return request<any>(
+      `/api/v1/adobe/albums/${encodeURIComponent(albumId)}/assets?${params}`,
+    );
+  },
+
+  listAssets(limit = 50, after?: string) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (after) params.set("after", after);
+    return request<any>(`/api/v1/adobe/assets?${params}`);
+  },
+
+  importToSession(
+    sessionId: string,
+    data: { asset_ids?: string[]; album_id?: string },
+  ) {
+    return request<{ detail: string; imported_count: number; photo_ids: string[] }>(
+      `/api/v1/sessions/${encodeURIComponent(sessionId)}/import-lightroom`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
     );
   },
 };

@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, SkipForward, Sparkles } from "lucide-react";
-import { sessions, ApiError } from "@/lib/api";
+import { sessions, adobe, ApiError } from "@/lib/api";
+import { useFeatures } from "@/lib/features-context";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { WizardStepIndicator } from "@/components/sessions/wizard-step-indicator";
 import { ClientPicker } from "@/components/sessions/client-picker";
@@ -66,6 +69,20 @@ export default function NewSessionPage() {
   const [wbTempShift, setWbTempShift] = useState(0);
   const [wbTintShift, setWbTintShift] = useState(0);
   const [wbStrength, setWbStrength] = useState(0.7);
+  const [aiProcessingEnabled, setAiProcessingEnabled] = useState(true);
+  const [lightroomSync, setLightroomSync] = useState(false);
+  const [lightroomTargetAlbumName, setLightroomTargetAlbumName] = useState("");
+
+  // Feature flags + Adobe status
+  const { features } = useFeatures();
+  const adobeEnabled = features?.adobe_lightroom ?? false;
+  const [adobeConnected, setAdobeConnected] = useState(false);
+
+  useEffect(() => {
+    if (adobeEnabled) {
+      adobe.status().then((s) => setAdobeConnected(s.connected)).catch(() => {});
+    }
+  }, [adobeEnabled]);
 
   const canNext = () => {
     if (step === 0) return title.trim().length > 0;
@@ -98,6 +115,9 @@ export default function NewSessionPage() {
         shoot_date: shootDate || undefined,
         client_id: clientId ?? undefined,
         auto_pick_count: autoPickCount,
+        ai_processing_enabled: aiProcessingEnabled,
+        lightroom_sync: lightroomSync,
+        lightroom_target_album_name: lightroomTargetAlbumName.trim() || undefined,
       });
       setSessionId(created.id);
       return created.id;
@@ -107,7 +127,7 @@ export default function NewSessionPage() {
     } finally {
       setLoading(false);
     }
-  }, [sessionId, title, description, shootDate, clientId, autoPickCount]);
+  }, [sessionId, title, description, shootDate, clientId, autoPickCount, aiProcessingEnabled, lightroomSync, lightroomTargetAlbumName]);
 
   const handleFilesAdded = useCallback((newFiles: File[]) => {
     setFiles((prev) => [
@@ -192,11 +212,17 @@ export default function NewSessionPage() {
       }
       goNext();
     } else if (step === 3) {
-      // Final: update processing config & finalize
+      // Final: update configure-step fields, processing config & finalize
       const sid = sessionId ?? (await createSession());
       if (!sid) return;
       setLoading(true);
       try {
+        // Persist configure-step settings (toggle may differ from creation defaults)
+        await sessions.update(sid, {
+          ai_processing_enabled: aiProcessingEnabled,
+          lightroom_sync: lightroomSync,
+          lightroom_target_album_name: lightroomTargetAlbumName.trim() || undefined,
+        });
         if (wbMode !== "auto" || wbTempShift !== 0 || wbTintShift !== 0 || wbStrength !== 0.7) {
           await sessions.updateProcessingConfig(sid, {
             wb_mode: wbMode,
@@ -408,9 +434,65 @@ export default function NewSessionPage() {
                       <strong className="text-[var(--foreground)]">Ready to process</strong>
                     </p>
                     <p className="mt-1">
-                      {files.length} photos will be scored by AI. The top{" "}
-                      {autoPickCount} photos will be auto-selected for your gallery.
+                      {files.length} photos will be
+                      {aiProcessingEnabled
+                        ? ` scored by AI. The top ${autoPickCount} photos will be auto-selected for your gallery.`
+                        : " processed for previews and watermarks. AI scoring is disabled for this session."}
                     </p>
+                  </div>
+
+                  {/* AI Processing Toggle */}
+                  <div className="flex items-center justify-between rounded-lg border border-[var(--border)] p-4">
+                    <div className="space-y-0.5">
+                      <Label>Enable AI processing</Label>
+                      <p className="text-xs text-[var(--muted-foreground)]">
+                        AI scoring, duplicate detection, and auto-pick
+                      </p>
+                    </div>
+                    <Switch
+                      checked={aiProcessingEnabled}
+                      onCheckedChange={setAiProcessingEnabled}
+                    />
+                  </div>
+
+                  {/* Lightroom Sync Toggle */}
+                  <div
+                    className={cn(
+                      "rounded-lg border border-[var(--border)] p-4 space-y-3",
+                      (!adobeEnabled || !adobeConnected) && "opacity-50 pointer-events-none"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Sync originals to Lightroom</Label>
+                        <p className="text-xs text-[var(--muted-foreground)]">
+                          {!adobeEnabled
+                            ? "Adobe integration is not configured"
+                            : !adobeConnected
+                              ? "Connect Adobe Lightroom in Settings first"
+                              : "Push originals to your Lightroom catalog"}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={lightroomSync}
+                        onCheckedChange={setLightroomSync}
+                        disabled={!adobeEnabled || !adobeConnected}
+                      />
+                    </div>
+                    {lightroomSync && adobeConnected && (
+                      <div className="space-y-1.5 pl-1">
+                        <Label className="text-xs">Target album name</Label>
+                        <Input
+                          value={lightroomTargetAlbumName}
+                          onChange={(e) => setLightroomTargetAlbumName(e.target.value)}
+                          placeholder={title.trim() || "Session title"}
+                          className="h-8 text-sm"
+                        />
+                        <p className="text-xs text-[var(--muted-foreground)]">
+                          A new album will be created in Lightroom. Leave blank to use the session title.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

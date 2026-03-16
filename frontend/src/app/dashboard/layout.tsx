@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthProvider } from "@/lib/auth-context";
+import { FeaturesProvider } from "@/lib/features-context";
 import { DashboardShell } from "@/components/dashboard-shell";
 
 export default function DashboardLayout({
@@ -10,7 +11,9 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthProvider>
-      <DashboardShell>{children}</DashboardShell>
+      <FeaturesProvider>
+        <DashboardShell>{children}</DashboardShell>
+      </FeaturesProvider>
     </AuthProvider>
   );
 }

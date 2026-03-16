@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -11,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from photocurate.api.auth import verify_pin
-from photocurate.api.deps import BlobStoreDep, DbSession
+from photocurate.api.deps import BlobStoreDep, DbSession, QueueDep
 from photocurate.config import settings
 from photocurate.core.models.gallery import Gallery, GalleryPhoto, Selection, SelectionPhoto
 from photocurate.core.models.session import Photo, ShootSession
@@ -95,7 +96,7 @@ async def get_gallery_photos(slug: str, db: DbSession, blob_store: BlobStoreDep)
 # ─── Selections ──────────────────────────────────────────────────────
 
 @router.post("/{slug}/selections", response_model=SelectionResponse, status_code=status.HTTP_201_CREATED)
-async def submit_selection(slug: str, body: SelectionCreate, db: DbSession):
+async def submit_selection(slug: str, body: SelectionCreate, db: DbSession, queue: QueueDep):
     """Submit client's photo selections."""
     gallery = await _get_gallery_by_slug(slug, db)
 
@@ -157,6 +158,21 @@ async def submit_selection(slug: str, body: SelectionCreate, db: DbSession):
             photo.status = "client_selected"
 
     await db.flush()
+
+    # Trigger Lightroom flagging if any selected photos are linked to Lightroom
+    has_lr_photos = await db.execute(
+        select(Photo.id).where(
+            Photo.id.in_(body.photo_ids),
+            Photo.lightroom_asset_id.isnot(None),
+        ).limit(1)
+    )
+    if has_lr_photos.first() and sess:
+        flag_event = json.dumps({
+            "type": "selection.flag",
+            "selection_id": str(selection.id),
+            "user_id": str(sess.photographer_id),
+        }).encode()
+        await queue.publish("photo.lightroom_flag", flag_event)
 
     return SelectionResponse(
         id=selection.id,

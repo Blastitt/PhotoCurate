@@ -93,6 +93,10 @@ async def run_auto_pick(session_id: uuid.UUID, tenant_id: uuid.UUID) -> None:
             logger.error("Session %s not found for auto-pick", session_id)
             return
 
+        if not session.ai_processing_enabled:
+            logger.info("AI processing disabled for session %s, skipping auto-pick", session_id)
+            return
+
         auto_pick_count = session.auto_pick_count
 
         # Load scored photos with their AI scores

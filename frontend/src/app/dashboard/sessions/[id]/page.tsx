@@ -9,6 +9,8 @@ import {
   ImageIcon,
   MoreHorizontal,
   Trash2,
+  BrainCircuit,
+  Cloud,
 } from "lucide-react";
 import { sessions, type SessionResponse, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -146,6 +148,18 @@ export default function SessionDetailPage() {
               <ImageIcon className="h-3.5 w-3.5" />
               {session.auto_pick_count} auto-picks
             </span>
+            {!session.ai_processing_enabled && (
+              <span className="flex items-center gap-1 text-yellow-500">
+                <BrainCircuit className="h-3.5 w-3.5" />
+                AI off
+              </span>
+            )}
+            {session.lightroom_sync && (
+              <span className="flex items-center gap-1 text-blue-500">
+                <Cloud className="h-3.5 w-3.5" />
+                LR sync
+              </span>
+            )}
           </div>
         </div>
 

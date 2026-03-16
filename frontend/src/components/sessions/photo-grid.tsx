@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { ScoreIndicator } from "@/components/sessions/score-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { Check, X, Expand, Star, ImageIcon } from "lucide-react";
+import { Check, X, Expand, Star, ImageIcon, Cloud, CloudOff, Loader2 } from "lucide-react";
 import type { PhotoResponse } from "@/lib/api";
 
 interface PhotoGridProps {
@@ -116,6 +116,47 @@ function PhotoCard({
         {isAutoPicked && (
           <div className="absolute top-2 right-2">
             <Star className="h-4 w-4 fill-[var(--primary)] text-[var(--primary)]" />
+          </div>
+        )}
+
+        {/* Lightroom sync status */}
+        {photo.lightroom_sync_status && (
+          <div
+            className={cn(
+              "absolute top-2 flex h-5 w-5 items-center justify-center rounded-full",
+              isAutoPicked ? "right-8" : "right-2",
+              photo.lightroom_sync_status === "synced"
+                ? "bg-[var(--success)] text-white"
+                : photo.lightroom_sync_status === "syncing"
+                  ? "bg-[var(--primary)] text-white animate-pulse"
+                  : photo.lightroom_sync_status === "pending_auth"
+                    ? "bg-yellow-500 text-white"
+                    : "bg-[var(--destructive)] text-white",
+            )}
+            title={`Lightroom: ${photo.lightroom_sync_status}`}
+          >
+            {photo.lightroom_sync_status === "synced" ? (
+              <Cloud className="h-3 w-3" />
+            ) : photo.lightroom_sync_status === "syncing" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : photo.lightroom_sync_status === "pending_auth" ? (
+              <CloudOff className="h-3 w-3" />
+            ) : (
+              <CloudOff className="h-3 w-3" />
+            )}
+          </div>
+        )}
+
+        {/* Lightroom imported badge (no original stored locally) */}
+        {photo.lightroom_asset_id && !photo.lightroom_sync_status && (
+          <div
+            className={cn(
+              "absolute top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white",
+              isAutoPicked ? "right-8" : "right-2",
+            )}
+            title="Imported from Lightroom"
+          >
+            <Cloud className="h-3 w-3" />
           </div>
         )}
 

@@ -30,6 +30,14 @@ class ShootSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     wb_tint_shift: Mapped[float] = mapped_column(Float, default=0.0)
     wb_strength: Mapped[float] = mapped_column(Float, default=0.7)
 
+    # AI processing
+    ai_processing_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Adobe Lightroom sync
+    lightroom_sync: Mapped[bool] = mapped_column(Boolean, default=False)
+    lightroom_target_album_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lightroom_target_album_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Relationships
     photos: Mapped[list[Photo]] = relationship("Photo", back_populates="session", cascade="all, delete-orphan")
     galleries: Mapped[list] = relationship("Gallery", back_populates="session")
@@ -57,6 +65,11 @@ class Photo(UUIDPrimaryKeyMixin, Base):
     face_center_y: Mapped[float | None] = mapped_column(Float, nullable=True)
     perceptual_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     duplicate_group_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    # Adobe Lightroom
+    lightroom_asset_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lightroom_sync_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

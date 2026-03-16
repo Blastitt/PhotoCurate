@@ -182,6 +182,31 @@ async def handle_scoring_event(msg: bytes) -> None:
     event = json.loads(msg)
     session_id = uuid.UUID(event["session_id"])
     tenant_id = uuid.UUID(event["tenant_id"])
+
+    # Check if AI processing is enabled for this session
+    async with async_session_factory() as db:
+        from photocurate.core.models.session import ShootSession
+        sess_result = await db.execute(
+            select(ShootSession).where(ShootSession.id == session_id)
+        )
+        session = sess_result.scalar_one_or_none()
+        if session and not session.ai_processing_enabled:
+            # Skip scoring — mark all processing photos as gallery_ready
+            from sqlalchemy import update
+            await db.execute(
+                update(Photo)
+                .where(
+                    Photo.session_id == session_id,
+                    Photo.tenant_id == tenant_id,
+                    Photo.status == "processing",
+                )
+                .values(status="gallery_ready")
+            )
+            session.status = "gallery_ready"
+            await db.commit()
+            logger.info("AI processing disabled for session %s, photos set to gallery_ready", session_id)
+            return
+
     blob_store = get_blob_store()
     analyzer = create_image_analyzer()
 

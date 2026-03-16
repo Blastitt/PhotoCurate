@@ -29,6 +29,17 @@ async def lifespan(app: FastAPI):
         from photocurate.workers.scoring import handle_scoring_event
         await queue.subscribe("photo.processing", handle_image_processing_event)
         await queue.subscribe("photo.scoring", handle_scoring_event)
+
+        # Adobe Lightroom workers (only if configured)
+        if settings.adobe_enabled:
+            from photocurate.workers.lightroom_sync import (
+                handle_lightroom_flag_event,
+                handle_lightroom_sync_event,
+            )
+            await queue.subscribe("photo.lightroom_sync", handle_lightroom_sync_event)
+            await queue.subscribe("photo.lightroom_flag", handle_lightroom_flag_event)
+            logger.info("Lightroom worker subscriptions registered")
+
         logger.info("Worker subscriptions registered")
     except Exception as e:
         logger.warning("Message queue not available: %s", e)
@@ -68,6 +79,7 @@ from photocurate.api.routes.auth_routes import router as auth_router
 from photocurate.api.routes.client_routes import router as client_router
 from photocurate.api.routes.gallery_routes import router as gallery_mgmt_router
 from photocurate.api.routes.session_routes import router as session_router
+from photocurate.api.routes.adobe_routes import features_router, router as adobe_router
 from photocurate.gallery.routes import router as gallery_public_router
 
 app.include_router(auth_router, prefix="/api/v1")
@@ -75,6 +87,8 @@ app.include_router(session_router, prefix="/api/v1")
 app.include_router(client_router, prefix="/api/v1")
 app.include_router(gallery_mgmt_router, prefix="/api/v1")
 app.include_router(gallery_public_router, prefix="/api/v1")  # Public gallery at /api/v1/gallery/:slug
+app.include_router(adobe_router, prefix="/api/v1")
+app.include_router(features_router, prefix="/api/v1")
 
 
 @app.get("/health")
