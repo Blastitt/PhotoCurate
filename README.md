@@ -11,6 +11,7 @@ Multi-tenant SaaS platform for photographers — AI-powered photo scoring, clien
 - **Watermarking** — Per-tenant logo overlay with configurable position, opacity, scale, and tiled mode
 - **White Balance** — Auto (gray-world) or manual temperature/tint correction on gallery previews
 - **Cloud Delivery** — Google Drive, Dropbox, and OneDrive integration via OAuth2
+- **Adobe Lightroom Integration** — Optional OAuth2 connection to Adobe Lightroom Cloud; import photos from Lightroom albums, push originals back to Lightroom, and flag client selections directly in the photographer's catalog
 - **Self-Hostable** — Abstractions over storage (Azure Blob / MinIO) and messaging (Azure Service Bus / NATS) with Docker Compose for single-node deployment
 
 ## Quick Start
@@ -86,7 +87,8 @@ src/photocurate/
 │   ├── auth.py             # JWT authentication
 │   └── routes/             # API route modules
 │       ├── auth_routes.py      # Register, login, current user
-│       ├── session_routes.py   # Sessions CRUD, uploads, finalize
+│       ├── session_routes.py   # Sessions CRUD, uploads, finalize, LR import
+│       ├── adobe_routes.py     # Adobe OAuth, Lightroom browse, feature flags
 │       ├── client_routes.py    # Client management
 │       └── gallery_routes.py   # Gallery creation, delivery, branding
 ├── gallery/                # Public gallery API (slug + PIN access)
@@ -95,18 +97,21 @@ src/photocurate/
 │   ├── azure_blob.py       # Azure Blob Storage
 │   ├── minio_blob.py       # MinIO (S3-compatible)
 │   ├── azure_queue.py      # Azure Service Bus
-│   └── nats_queue.py       # NATS
+│   ├── nats_queue.py       # NATS
+│   └── adobe_lightroom.py  # Adobe Lightroom API v2 client
 └── workers/                # Background workers
     ├── scoring.py          # AI scoring (OpenCV + optional Azure AI Vision)
     ├── autopick.py         # Duplicate grouping + top-N auto-selection
     ├── image_processing.py # Resize, watermark, WB correction, EXIF strip
-    └── delivery.py         # Cloud storage delivery (Drive, Dropbox, OneDrive)
+    ├── delivery.py         # Cloud storage delivery (Drive, Dropbox, OneDrive)
+    └── lightroom_sync.py   # Push-to-Lightroom and flag-selection workers
 
 frontend/
 ├── src/
 │   ├── lib/
 │   │   ├── api.ts              # Typed API client for all endpoints
-│   │   └── auth-context.tsx    # React auth context (JWT)
+│   │   ├── auth-context.tsx    # React auth context (JWT)
+│   │   └── features-context.tsx # Feature-flag context (Adobe, etc.)
 │   ├── components/
 │   │   └── dashboard-shell.tsx # Sidebar layout with navigation
 │   └── app/
@@ -114,7 +119,8 @@ frontend/
 │       ├── dashboard/          # Photographer dashboard (auth required)
 │       │   ├── sessions/       # Session list, create, detail (upload, review, gallery, WB settings)
 │       │   ├── clients/        # Client management
-│       │   └── branding/       # Watermark logo + settings
+│       │   ├── branding/       # Watermark logo + settings
+│       │   └── settings/       # Integrations (Adobe Lightroom connection)
 │       └── gallery/
 │           └── [slug]/         # Public client gallery (PIN, photo grid, lightbox, selection)
 ├── Dockerfile
@@ -148,6 +154,16 @@ frontend/
 | POST | `/api/v1/clients` | Create client |
 | GET | `/api/v1/clients` | List clients |
 | DELETE | `/api/v1/clients/:id` | Delete client |
+| POST | `/api/v1/sessions/:id/import-lightroom` | Import photos from a Lightroom album |
+| GET | `/api/v1/adobe/connect` | Get Adobe OAuth2 authorization URL |
+| GET | `/api/v1/adobe/callback` | Adobe OAuth2 callback |
+| DELETE | `/api/v1/adobe/disconnect` | Disconnect Adobe account |
+| GET | `/api/v1/adobe/status` | Check Adobe connection status |
+| POST | `/api/v1/adobe/retry-pending` | Retry pending Lightroom tasks |
+| GET | `/api/v1/adobe/albums` | List Lightroom albums |
+| GET | `/api/v1/adobe/albums/:id/assets` | List assets in a Lightroom album |
+| GET | `/api/v1/adobe/assets` | List Lightroom catalog assets |
+| GET | `/api/v1/config/features` | Feature flags (Adobe enabled, etc.) |
 
 ### Public (client gallery)
 
@@ -171,6 +187,10 @@ All settings are loaded from environment variables (`.env` file). See `.env.exam
 | `JWT_SECRET_KEY` | — | Secret key for JWT tokens (change in production) |
 | `AZURE_AI_VISION_ENDPOINT` | — | Optional: Azure AI Vision endpoint for face analysis |
 | `AZURE_AI_VISION_KEY` | — | Optional: Azure AI Vision API key |
+| `ADOBE_CLIENT_ID` | — | Optional: Adobe Developer Console client ID for Lightroom integration |
+| `ADOBE_CLIENT_SECRET` | — | Optional: Adobe Developer Console client secret |
+| `ADOBE_OAUTH_REDIRECT_URI` | — | Optional: OAuth2 callback URL (e.g. `http://localhost:3000/api/v1/adobe/callback`) |
+| `ADOBE_TOKEN_ENCRYPTION_KEY` | — | Optional: Fernet key for encrypting stored Adobe tokens |
 
 ## API Documentation
 
